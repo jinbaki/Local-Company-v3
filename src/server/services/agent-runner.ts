@@ -4,7 +4,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import type { AppConfig } from "../config.js";
 import { isCodexCliRunner } from "../config.js";
-import type { PmPlan } from "../../shared/types.js";
+import type { ArtifactKind, PmPlan } from "../../shared/types.js";
 
 export type ReviewResult = "approved" | "needs_revision" | "owner_decision";
 
@@ -64,7 +64,7 @@ export async function runCodexCli(config: AppConfig, input: CodexExecInput): Pro
     const timeout = setTimeout(() => {
       child.kill();
       fs.rmSync(outputPath, { force: true });
-      reject(new Error(`Codex CLI 실행 시간이 ${config.codexTimeoutMs}ms를 넘었습니다.`));
+      reject(new Error(`Codex CLI execution exceeded ${config.codexTimeoutMs}ms.`));
     }, config.codexTimeoutMs);
 
     child.stdout.setEncoding("utf8");
@@ -78,19 +78,19 @@ export async function runCodexCli(config: AppConfig, input: CodexExecInput): Pro
     child.on("error", (error) => {
       clearTimeout(timeout);
       fs.rmSync(outputPath, { force: true });
-      reject(new Error(`Codex CLI 실행에 실패했습니다: ${error.message}`));
+      reject(new Error(`Codex CLI failed to start: ${error.message}`));
     });
     child.on("close", (code) => {
       clearTimeout(timeout);
       if (code !== 0) {
         fs.rmSync(outputPath, { force: true });
-        reject(new Error(`Codex CLI가 실패했습니다. ${stderr || stdout || `exit code ${code}`}`.trim()));
+        reject(new Error(`Codex CLI failed. ${stderr || stdout || `exit code ${code}`}`.trim()));
         return;
       }
 
       const output = readOutput(outputPath, stdout);
       if (!output) {
-        reject(new Error("Codex CLI가 빈 응답을 반환했습니다."));
+        reject(new Error("Codex CLI returned an empty response."));
         return;
       }
       resolve(output);
@@ -105,14 +105,14 @@ export function extractJsonObject(text: string): unknown {
   const start = candidate.indexOf("{");
   const end = candidate.lastIndexOf("}");
   if (start < 0 || end < start) {
-    throw new Error("JSON 객체를 찾지 못했습니다.");
+    throw new Error("Could not find a JSON object in the model response.");
   }
 
   return JSON.parse(candidate.slice(start, end + 1)) as unknown;
 }
 
 function requestedCount(instruction: string): number {
-  const match = /(\d+)\s*개/.exec(instruction);
+  const match = /(\d+)/.exec(instruction);
   if (!match) {
     return 3;
   }
@@ -125,45 +125,45 @@ export function createMockPlan(title: string, instruction: string): PmPlan {
   const count = requestedCount(instruction);
   const artifacts = Array.from({ length: count }, (_, index) => ({
     clientId: `artifact_${index + 1}`,
-    title: `${title} 산출물 ${index + 1}.md`,
+    title: `${title} artifact ${index + 1}.md`,
     kind: "markdown" as const,
-    expectedSections: ["목표", "핵심 내용", "실행안", "검토 기준"]
+    expectedSections: ["Goal", "Content", "Execution", "Review criteria"]
   }));
 
   return {
-    summary: `${title} 요청을 ${count}개 산출물로 나누어 실행합니다.`,
+    summary: `${title} will be split into ${count} artifact tasks.`,
     workers: [
       {
         clientId: "worker_planner",
-        name: "기획 담당",
-        role: "구조 설계",
-        mission: "요청을 산출물 단위로 나누고 핵심 구조를 잡습니다."
+        name: "Planning Worker",
+        role: "Structure design",
+        mission: "Split the request into artifact-sized work."
       },
       {
         clientId: "worker_writer",
-        name: "작성 담당",
-        role: "본문 작성",
-        mission: "PM 작업지시에 맞춰 대표가 검토할 수 있는 초안을 만듭니다."
+        name: "Writing Worker",
+        role: "Draft writing",
+        mission: "Create reviewable artifact drafts from PM instructions."
       },
       {
         clientId: "worker_quality",
-        name: "검수 담당",
-        role: "품질 검토",
-        mission: "누락, 위험 표현, 대표 결정 필요 항목을 점검합니다."
+        name: "Quality Worker",
+        role: "Review support",
+        mission: "Check omissions, risky claims, and owner-decision needs."
       }
     ],
     artifacts,
     tasks: artifacts.map((artifact, index) => ({
       clientId: `task_${index + 1}`,
-      title: `${artifact.title} 작성`,
+      title: `${artifact.title} draft`,
       workerRef: index % 2 === 0 ? "worker_writer" : "worker_planner",
       instructions: [
-        `대표 요청: ${instruction}`,
-        `산출물 "${artifact.title}"을 Markdown으로 작성하세요.`,
-        "확정되지 않은 외부 사실은 확인 필요로 남기세요.",
-        "결과는 바로 검토 가능한 문서 형태여야 합니다."
+        `Owner request: ${instruction}`,
+        `Create artifact "${artifact.title}" as ${artifact.kind}.`,
+        "Do not claim unverified external facts.",
+        "Make the result easy for the owner to review."
       ].join("\n"),
-      acceptanceCriteria: "목표, 핵심 내용, 실행안, 검토 기준이 포함되어야 합니다.",
+      acceptanceCriteria: "The artifact must include a goal, core content, execution notes, and review criteria.",
       artifactRefs: [artifact.clientId],
       priority: "high"
     })),
@@ -174,6 +174,99 @@ export function createMockPlan(title: string, instruction: string): PmPlan {
       maxAttemptsPerTask: 2
     }
   };
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[<>&]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[char] ?? char);
+}
+
+function mockWorkerOutput(input: {
+  artifactKind: ArtifactKind;
+  artifactTitle: string;
+  workerName: string;
+  taskTitle: string;
+  instructions: string;
+  acceptanceCriteria: string;
+}): string {
+  if (input.artifactKind === "html") {
+    return [
+      "<!doctype html>",
+      '<html lang="ko">',
+      "<head>",
+      '  <meta charset="utf-8" />',
+      `  <title>${escapeHtml(input.artifactTitle)}</title>`,
+      "  <style>",
+      "    body { font-family: system-ui, sans-serif; margin: 32px; line-height: 1.7; color: #162033; }",
+      "    section { max-width: 760px; }",
+      "  </style>",
+      "</head>",
+      "<body>",
+      "  <section>",
+      `    <h1>${escapeHtml(input.artifactTitle)}</h1>`,
+      `    <p>${escapeHtml(input.workerName)} worker가 PM 지시에 맞춰 만든 HTML 산출물 예시입니다.</p>`,
+      "    <h2>요청</h2>",
+      `    <p>${escapeHtml(input.instructions)}</p>`,
+      "    <h2>검토 기준</h2>",
+      `    <p>${escapeHtml(input.acceptanceCriteria)}</p>`,
+      "  </section>",
+      "</body>",
+      "</html>"
+    ].join("\n");
+  }
+
+  if (input.artifactKind === "json") {
+    return JSON.stringify(
+      {
+        title: input.artifactTitle,
+        worker: input.workerName,
+        task: input.taskTitle,
+        sections: ["goal", "content", "execution", "reviewCriteria"],
+        request: input.instructions,
+        acceptanceCriteria: input.acceptanceCriteria,
+        status: "draft"
+      },
+      null,
+      2
+    );
+  }
+
+  if (input.artifactKind === "image") {
+    const svg = [
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">',
+      '  <rect width="1200" height="720" fill="#f8fafc"/>',
+      '  <rect x="72" y="72" width="1056" height="576" rx="32" fill="#ffffff" stroke="#d9e0ea" stroke-width="4"/>',
+      '  <text x="120" y="180" font-family="Arial, sans-serif" font-size="54" font-weight="700" fill="#162033">Local Company V3</text>',
+      `  <text x="120" y="260" font-family="Arial, sans-serif" font-size="32" fill="#475467">${escapeHtml(input.artifactTitle)}</text>`,
+      '  <rect x="120" y="340" width="300" height="72" rx="16" fill="#dbeafe"/>',
+      '  <text x="148" y="386" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#1d4ed8">IMAGE ARTIFACT</text>',
+      '  <text x="120" y="500" font-family="Arial, sans-serif" font-size="26" fill="#667085">Generated as an SVG preview for the artifact viewer.</text>',
+      "</svg>"
+    ].join("");
+    return `data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`;
+  }
+
+  return [
+    `# ${input.taskTitle}`,
+    "",
+    "## 목표",
+    "",
+    `${input.workerName} worker가 PM 작업지시를 바탕으로 산출물 초안을 작성했습니다.`,
+    "",
+    "## 핵심 내용",
+    "",
+    input.instructions,
+    "",
+    "## 실행안",
+    "",
+    "- 요청을 산출물 단위로 정리했습니다.",
+    "- 확인되지 않은 외부 사실은 단정하지 않았습니다.",
+    "- 후속 검토가 가능하도록 구조를 나누었습니다.",
+    "",
+    "## 검토 기준",
+    "",
+    input.acceptanceCriteria || "PM이 검토할 수 있는 산출물이어야 합니다.",
+    ""
+  ].join("\n");
 }
 
 export async function generatePlannerOutput(config: AppConfig, input: { title: string; instruction: string; references: string }): Promise<string> {
@@ -196,7 +289,7 @@ export async function generatePlannerOutput(config: AppConfig, input: { title: s
       '{"clientId":"worker_id","name":"...","role":"...","mission":"...","model":"optional"}',
       "",
       "Artifact schema:",
-      '{"clientId":"artifact_id","title":"file-or-document-title.md","kind":"markdown","expectedSections":["..."]}',
+      '{"clientId":"artifact_id","title":"file-or-document-title.md","kind":"markdown|html|json|image","expectedSections":["..."]}',
       "",
       "Task schema:",
       '{"clientId":"task_id","title":"...","workerRef":"worker_id","instructions":"...","acceptanceCriteria":"...","dependsOn":[],"artifactRefs":["artifact_id"],"priority":"high"}',
@@ -205,7 +298,10 @@ export async function generatePlannerOutput(config: AppConfig, input: { title: s
       '{"clientId":"decision_id","title":"...","reason":"...","options":["...","..."],"recommendedOption":"...","blocks":["task_id"]}',
       "",
       "Rules:",
-      "- Write Korean content.",
+      "- Write Korean content unless the owner requests another language.",
+      "- Supported artifact kinds are markdown, html, json, image.",
+      "- Use markdown for written documents, html for interactive/readable previews, json for structured data, and image for visual outputs.",
+      "- For image artifacts, ask workers for an image URL, data:image data URL, or SVG markup.",
       "- Create 1-8 lean workers.",
       "- Create concrete tasks that produce artifacts.",
       "- Do not include local absolute paths.",
@@ -218,38 +314,25 @@ export async function generatePlannerOutput(config: AppConfig, input: { title: s
       input.instruction,
       "",
       "References:",
-      input.references || "없음"
+      input.references || "None"
     ].join("\n")
   });
 }
 
 export async function generateWorkerOutput(
   config: AppConfig,
-  input: { workerName: string; taskTitle: string; instructions: string; acceptanceCriteria: string; references: string }
+  input: {
+    workerName: string;
+    taskTitle: string;
+    artifactTitle: string;
+    artifactKind: ArtifactKind;
+    instructions: string;
+    acceptanceCriteria: string;
+    references: string;
+  }
 ): Promise<string> {
   if (!isCodexCliRunner(config)) {
-    return [
-      `# ${input.taskTitle}`,
-      "",
-      "## 목표",
-      "",
-      `${input.workerName}이 PM 작업지시를 바탕으로 산출물 초안을 작성했습니다.`,
-      "",
-      "## 핵심 내용",
-      "",
-      input.instructions,
-      "",
-      "## 실행안",
-      "",
-      "- 요청을 산출물 단위로 정리했습니다.",
-      "- 확인되지 않은 외부 사실은 단정하지 않았습니다.",
-      "- 후속 검토가 가능하도록 구조를 나누었습니다.",
-      "",
-      "## 검토 기준",
-      "",
-      input.acceptanceCriteria || "PM이 검토 가능한 산출물이어야 합니다.",
-      ""
-    ].join("\n");
+    return mockWorkerOutput(input);
   }
 
   return runCodexCli(config, {
@@ -257,21 +340,28 @@ export async function generateWorkerOutput(
     model: config.codexWorkerModel,
     prompt: [
       "You are a Local Company V3 worker.",
-      "Write the requested artifact in Korean Markdown.",
+      "Write the requested artifact in the requested output format.",
+      "Supported artifact kinds: markdown, html, json, image.",
+      "For markdown, return Markdown.",
+      "For html, return a complete safe HTML document or fragment.",
+      "For json, return valid JSON only.",
+      "For image, return an image URL, a data:image/... data URL, or SVG markup.",
       "Do not claim unverified external facts.",
       "If owner approval is required, clearly mark it as 대표 확인 필요.",
       "",
       `Worker: ${input.workerName}`,
       `Task: ${input.taskTitle}`,
+      `Artifact title: ${input.artifactTitle}`,
+      `Artifact kind: ${input.artifactKind}`,
       "",
       "Instructions:",
       input.instructions,
       "",
       "Acceptance criteria:",
-      input.acceptanceCriteria || "PM이 검토 가능한 산출물이어야 합니다.",
+      input.acceptanceCriteria || "The artifact must be reviewable by the PM.",
       "",
       "References:",
-      input.references || "없음"
+      input.references || "None"
     ].join("\n")
   });
 }
@@ -283,8 +373,8 @@ export async function generateReviewOutput(
   if (!isCodexCliRunner(config)) {
     return {
       result: "approved",
-      summary: "PM 리뷰를 통과했습니다.",
-      review: ["# PM 리뷰", "", "판정: 승인", "", "- 산출물 구조와 완료 기준이 충족되었습니다.", ""].join("\n")
+      summary: "PM review passed.",
+      review: ["# PM Review", "", "Decision: approved", "", "- The artifact is structured enough for owner review.", ""].join("\n")
     };
   }
 
@@ -300,7 +390,7 @@ export async function generateReviewOutput(
       "Use needs_revision if required sections or acceptance criteria are missing.",
       "",
       `Artifact title: ${input.artifactTitle}`,
-      `Acceptance criteria: ${input.acceptanceCriteria || "없음"}`,
+      `Acceptance criteria: ${input.acceptanceCriteria || "None"}`,
       "",
       "Content:",
       input.content
@@ -312,7 +402,7 @@ export async function generateReviewOutput(
 
   return {
     result,
-    summary: typeof parsed.summary === "string" && parsed.summary.trim() ? parsed.summary.trim() : "PM 리뷰가 완료되었습니다.",
+    summary: typeof parsed.summary === "string" && parsed.summary.trim() ? parsed.summary.trim() : "PM review completed.",
     review: typeof parsed.review === "string" && parsed.review.trim() ? parsed.review.trim() : output.trim()
   };
 }

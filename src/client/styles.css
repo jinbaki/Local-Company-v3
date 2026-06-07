@@ -318,6 +318,21 @@ select {
   color: #667085;
 }
 
+.type-chip {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-height: 24px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 0 9px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .warning-panel {
   border-color: #fde68a;
 }
@@ -377,7 +392,15 @@ select {
   flex: 0 0 auto;
 }
 
-.artifact-panel pre {
+.artifact-content {
+  display: grid;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.artifact-content pre,
+.artifact-source pre {
   overflow: auto;
   margin: 16px 0 0;
   border-radius: 8px;
@@ -392,6 +415,53 @@ select {
   overflow-wrap: anywhere;
   word-break: break-word;
   -webkit-overflow-scrolling: touch;
+}
+
+.html-preview,
+.image-preview {
+  overflow: hidden;
+  min-height: 0;
+  margin-top: 16px;
+  border: 1px solid #e3e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.html-preview iframe {
+  display: block;
+  width: 100%;
+  height: min(620px, calc(100vh - 190px));
+  border: 0;
+  background: #ffffff;
+}
+
+.artifact-source {
+  margin-top: 12px;
+  color: #475467;
+}
+
+.artifact-source summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.artifact-source pre {
+  max-height: 260px;
+}
+
+.image-preview {
+  display: grid;
+  place-items: center;
+  padding: 14px;
+}
+
+.image-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 190px);
+  border-radius: 6px;
+  object-fit: contain;
 }
 
 .empty,
@@ -461,7 +531,8 @@ select {
     min-width: 0;
   }
 
-  .artifact-row .badge {
+  .artifact-row .badge,
+  .artifact-row .type-chip {
     justify-self: start;
   }
 
@@ -494,11 +565,17 @@ select {
     margin-top: 8px;
   }
 
-  .artifact-panel pre {
+  .artifact-content pre,
+  .artifact-source pre {
     margin-top: 12px;
     border-radius: 8px;
     font-size: 15px;
     line-height: 1.75;
     padding: 14px;
+  }
+
+  .html-preview iframe,
+  .image-preview img {
+    max-height: calc(100dvh - 170px);
   }
 }

@@ -1,15 +1,24 @@
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import type { AppConfig } from "../config.js";
-import type { ArtifactDetailResponse, ArtifactSummary, ArtifactVersionSummary } from "../../shared/types.js";
-import { absoluteFromRun, readTextFile, relativeToRun, runRoot, safeFileName, writeTextFile } from "../storage/file-store.js";
+import type { ArtifactDetailResponse, ArtifactKind, ArtifactSummary, ArtifactVersionSummary } from "../../shared/types.js";
+import {
+  absoluteFromRun,
+  readBinaryFile,
+  readTextFile,
+  relativeToRun,
+  runRoot,
+  safeFileName,
+  writeBinaryFile,
+  writeTextFile
+} from "../storage/file-store.js";
 import { createId } from "./ids.js";
 
 interface ArtifactRow {
   id: string;
   runId: string;
   title: string;
-  kind: "markdown" | "html" | "json" | "file_bundle";
+  kind: ArtifactKind;
   status: "requested" | "draft" | "in_review" | "needs_revision" | "approved";
   currentVersionId: string | null;
   reviewSummary: string;
@@ -29,6 +38,95 @@ interface VersionRow {
 interface RunCampaignRow {
   runId: string;
   campaignId: string;
+}
+
+function parseImageDataUrl(content: string): { mime: string; data: string } | null {
+  const match = /^data:(image\/[a-z0-9.+-]+);base64,([\s\S]+)$/i.exec(content.trim());
+  if (!match) {
+    return null;
+  }
+  return { mime: match[1].toLowerCase(), data: match[2].replace(/\s/g, "") };
+}
+
+function imageExtensionFromMime(mime: string): string {
+  const normalized = mime.toLowerCase();
+  if (normalized === "image/jpeg" || normalized === "image/jpg") {
+    return "jpg";
+  }
+  if (normalized === "image/svg+xml") {
+    return "svg";
+  }
+  if (normalized === "image/png") {
+    return "png";
+  }
+  if (normalized === "image/webp") {
+    return "webp";
+  }
+  if (normalized === "image/gif") {
+    return "gif";
+  }
+  return "img";
+}
+
+function mimeFromImagePath(filePath: string): string {
+  const extension = path.extname(filePath).toLowerCase();
+  if (extension === ".jpg" || extension === ".jpeg") {
+    return "image/jpeg";
+  }
+  if (extension === ".svg") {
+    return "image/svg+xml";
+  }
+  if (extension === ".webp") {
+    return "image/webp";
+  }
+  if (extension === ".gif") {
+    return "image/gif";
+  }
+  return "image/png";
+}
+
+function artifactExtension(kind: ArtifactKind, content: string): string {
+  if (kind === "html") {
+    return "html";
+  }
+  if (kind === "json") {
+    return "json";
+  }
+  if (kind === "image") {
+    const dataUrl = parseImageDataUrl(content);
+    if (dataUrl) {
+      return imageExtensionFromMime(dataUrl.mime);
+    }
+    if (content.trim().startsWith("<svg")) {
+      return "svg";
+    }
+    return "image.txt";
+  }
+  return "md";
+}
+
+function writeArtifactContent(filePath: string, kind: ArtifactKind, content: string): void {
+  const dataUrl = kind === "image" ? parseImageDataUrl(content) : null;
+  if (dataUrl) {
+    writeBinaryFile(filePath, Buffer.from(dataUrl.data, "base64"));
+    return;
+  }
+  writeTextFile(filePath, content);
+}
+
+function readArtifactContent(filePath: string, kind: ArtifactKind): string {
+  if (kind === "image") {
+    const extension = path.extname(filePath).toLowerCase();
+    if ([".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"].includes(extension)) {
+      const mime = mimeFromImagePath(filePath);
+      if (extension === ".svg") {
+        const svg = readTextFile(filePath);
+        return `data:${mime};utf8,${encodeURIComponent(svg)}`;
+      }
+      return `data:${mime};base64,${readBinaryFile(filePath).toString("base64")}`;
+    }
+  }
+  return readTextFile(filePath);
 }
 
 export function normalizeArtifact(row: ArtifactRow & { currentVersion?: number | null }): ArtifactSummary {
@@ -94,12 +192,12 @@ export function createArtifactVersion(
 ): ArtifactVersionSummary {
   const artifact = db
     .prepare(
-      `SELECT a.title, a.run_id AS runId, r.campaign_id AS campaignId
+      `SELECT a.title, a.kind, a.run_id AS runId, r.campaign_id AS campaignId
        FROM artifacts a
        JOIN runs r ON r.id = a.run_id
        WHERE a.id = ?`
     )
-    .get(input.artifactId) as { title: string; runId: string; campaignId: string } | undefined;
+    .get(input.artifactId) as { title: string; kind: ArtifactKind; runId: string; campaignId: string } | undefined;
   if (!artifact) {
     throw new Error("산출물을 찾지 못했습니다.");
   }
@@ -109,9 +207,9 @@ export function createArtifactVersion(
     .get(input.artifactId) as { nextVersion: number } | undefined;
   const version = row?.nextVersion ?? 1;
   const versionId = createId("artifact-version");
-  const fileName = `${String(version).padStart(3, "0")}-${safeFileName(artifact.title, "artifact")}.md`;
+  const fileName = `${String(version).padStart(3, "0")}-${safeFileName(artifact.title, "artifact")}.${artifactExtension(artifact.kind, input.content)}`;
   const absolutePath = path.join(runRoot(config, artifact.campaignId, artifact.runId), "artifacts", input.artifactId, fileName);
-  writeTextFile(absolutePath, input.content);
+  writeArtifactContent(absolutePath, artifact.kind, input.content);
   const relativePath = relativeToRun(config, artifact.campaignId, artifact.runId, absolutePath);
 
   db.prepare(
@@ -171,7 +269,9 @@ export function getArtifactDetail(db: DatabaseSync, config: AppConfig, artifactI
     : undefined;
 
   const currentVersion = versionRow ? normalizeVersion(versionRow) : null;
-  const content = currentVersion ? readTextFile(absoluteFromRun(config, runCampaign.campaignId, runCampaign.runId, currentVersion.path)) : "";
+  const content = currentVersion
+    ? readArtifactContent(absoluteFromRun(config, runCampaign.campaignId, runCampaign.runId, currentVersion.path), artifact.kind)
+    : "";
 
   return { artifact, currentVersion, content };
 }

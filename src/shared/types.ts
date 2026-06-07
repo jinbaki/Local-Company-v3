@@ -4,7 +4,7 @@ export type ArtifactStatus = "requested" | "draft" | "in_review" | "needs_revisi
 export type WorkerRunStatus = "queued" | "running" | "failed" | "completed";
 export type DecisionStatus = "open" | "answered";
 export type ReferenceKind = "note" | "url" | "file";
-export type ArtifactKind = "markdown" | "html" | "json" | "file_bundle";
+export type ArtifactKind = "markdown" | "html" | "json" | "image";
 export type RunMode = "plan_only" | "until_next_decision" | "until_complete";
 
 export interface HealthResponse {

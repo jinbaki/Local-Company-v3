@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import type { AppConfig } from "../config.js";
-import type { StartRunRequest, StartRunResponse, TaskSummary } from "../../shared/types.js";
+import type { ArtifactKind, StartRunRequest, StartRunResponse, TaskSummary } from "../../shared/types.js";
 import { createArtifactVersion, getArtifactDetail } from "./artifact-service.js";
 import { generateReviewOutput, generateWorkerOutput } from "./agent-runner.js";
 import { createId } from "./ids.js";
@@ -29,6 +29,7 @@ interface TaskRunRow {
 interface ArtifactReviewRow {
   id: string;
   title: string;
+  kind: ArtifactKind;
   status: string;
 }
 
@@ -121,9 +122,13 @@ async function runWorkerTask(db: DatabaseSync, config: AppConfig, task: TaskRunR
   ).run(task.id);
 
   try {
+    const artifacts = getArtifactRowsForTask(db, task);
+    const primaryArtifact = artifacts[0];
     const content = await generateWorkerOutput(config, {
       workerName: task.workerName ?? "AI worker",
       taskTitle: task.title,
+      artifactTitle: primaryArtifact?.title ?? task.title,
+      artifactKind: primaryArtifact?.kind ?? "markdown",
       instructions: task.instructions,
       acceptanceCriteria: task.acceptanceCriteria,
       references: referencesForRun(db, task.runId)
@@ -177,7 +182,7 @@ function getArtifactRowsForTask(db: DatabaseSync, task: TaskRunRow): ArtifactRev
   }
   const placeholders = artifactIds.map(() => "?").join(", ");
   return db
-    .prepare(`SELECT id, title, status FROM artifacts WHERE id IN (${placeholders}) ORDER BY rowid ASC`)
+    .prepare(`SELECT id, title, kind, status FROM artifacts WHERE id IN (${placeholders}) ORDER BY rowid ASC`)
     .all(...artifactIds) as unknown as ArtifactReviewRow[];
 }
 

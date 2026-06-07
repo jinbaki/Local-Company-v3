@@ -35,8 +35,17 @@ export function writeTextFile(filePath: string, content: string): void {
   fs.writeFileSync(filePath, content, "utf8");
 }
 
+export function writeBinaryFile(filePath: string, content: Buffer): void {
+  ensureDir(path.dirname(filePath));
+  fs.writeFileSync(filePath, content);
+}
+
 export function readTextFile(filePath: string): string {
   return fs.readFileSync(filePath, "utf8");
+}
+
+export function readBinaryFile(filePath: string): Buffer {
+  return fs.readFileSync(filePath);
 }
 
 export function relativeToRun(config: AppConfig, campaignId: string, runId: string, filePath: string): string {

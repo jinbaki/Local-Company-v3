@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { AlertCircle, CheckCircle2, FileText, Gauge, Loader2, RefreshCw, Server, Square, Users } from "lucide-react";
-import type { ArtifactDetailResponse, DashboardResponse, RunWorkspace } from "../shared/types.js";
+import type { ArtifactDetailResponse, ArtifactKind, DashboardResponse, RunWorkspace } from "../shared/types.js";
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -31,8 +31,8 @@ function statusLabel(status: string): string {
     completed: "완료",
     stopped: "중지",
     requested: "요청됨",
-    in_review: "PM 리뷰",
-    needs_revision: "재작업 필요",
+    in_review: "PM 검토",
+    needs_revision: "수정 필요",
     approved: "승인",
     open: "열림",
     answered: "답변 완료"
@@ -70,6 +70,38 @@ function formatDate(value: string | null): string {
     hour: "2-digit",
     minute: "2-digit"
   }).format(date);
+}
+
+function artifactKindLabel(kind: ArtifactKind): string {
+  const labels: Record<ArtifactKind, string> = {
+    markdown: "MD",
+    html: "HTML",
+    json: "JSON",
+    image: "IMAGE"
+  };
+  return labels[kind];
+}
+
+function prettyJson(content: string): string {
+  try {
+    return JSON.stringify(JSON.parse(content), null, 2);
+  } catch {
+    return content;
+  }
+}
+
+function imageSource(content: string): string | null {
+  const trimmed = content.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (/^(data:image\/|https?:\/\/|\/)/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("<svg")) {
+    return `data:image/svg+xml;utf8,${encodeURIComponent(trimmed)}`;
+  }
+  return null;
 }
 
 export function App(): ReactElement {
@@ -259,7 +291,7 @@ function RunDetail({ workspace, onOpenArtifact }: { workspace: RunWorkspace; onO
 
       <div className="panel span-2">
         <div className="panel-head compact">
-          <h3>작업 큐</h3>
+          <h3>작업</h3>
         </div>
         <div className="table">
           <div className="table-head">
@@ -291,9 +323,11 @@ function RunDetail({ workspace, onOpenArtifact }: { workspace: RunWorkspace; onO
             <button className="artifact-row" key={item.id} type="button" onClick={() => onOpenArtifact(item.id)}>
               <span>{item.title}</span>
               <small>{item.reviewSummary || `v${item.currentVersion ?? "-"}`}</small>
+              <em className="type-chip">{artifactKindLabel(item.kind)}</em>
               <strong className={badgeClass(item.status)}>{statusLabel(item.status)}</strong>
             </button>
           ))}
+          {workspace.artifacts.length === 0 ? <p className="muted">산출물 없음</p> : null}
         </div>
       </div>
 
@@ -316,6 +350,53 @@ function RunDetail({ workspace, onOpenArtifact }: { workspace: RunWorkspace; onO
   );
 }
 
+function ArtifactContent({ detail }: { detail: ArtifactDetailResponse }): ReactElement {
+  const content = detail.content || "";
+
+  if (detail.artifact.kind === "html") {
+    return (
+      <div className="artifact-content">
+        <div className="html-preview">
+          <iframe title={detail.artifact.title} sandbox="" srcDoc={content || "<p>No HTML content yet.</p>"} />
+        </div>
+        <details className="artifact-source">
+          <summary>HTML source</summary>
+          <pre>{content || "No HTML content yet."}</pre>
+        </details>
+      </div>
+    );
+  }
+
+  if (detail.artifact.kind === "json") {
+    return (
+      <div className="artifact-content">
+        <pre>{prettyJson(content || "{}")}</pre>
+      </div>
+    );
+  }
+
+  if (detail.artifact.kind === "image") {
+    const src = imageSource(content);
+    return (
+      <div className="artifact-content image-content">
+        {src ? (
+          <div className="image-preview">
+            <img src={src} alt={detail.artifact.title} />
+          </div>
+        ) : (
+          <pre>{content || "No image content yet."}</pre>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="artifact-content">
+      <pre>{content || "No markdown content yet."}</pre>
+    </div>
+  );
+}
+
 function ArtifactPanel({ detail, onClose }: { detail: ArtifactDetailResponse; onClose: () => void }): ReactElement {
   return (
     <aside className="artifact-panel">
@@ -325,6 +406,7 @@ function ArtifactPanel({ detail, onClose }: { detail: ArtifactDetailResponse; on
           <h2>{detail.artifact.title}</h2>
           <div className="artifact-meta">
             <span className={badgeClass(detail.artifact.status)}>{statusLabel(detail.artifact.status)}</span>
+            <span>{artifactKindLabel(detail.artifact.kind)}</span>
             <span>{detail.currentVersion ? `v${detail.currentVersion.version}` : "v-"}</span>
             <span>{formatDate(detail.artifact.updatedAt)}</span>
           </div>
@@ -333,7 +415,7 @@ function ArtifactPanel({ detail, onClose }: { detail: ArtifactDetailResponse; on
           닫기
         </button>
       </div>
-      <pre>{detail.content || "아직 본문이 없습니다."}</pre>
+      <ArtifactContent detail={detail} />
     </aside>
   );
 }
@@ -341,7 +423,7 @@ function ArtifactPanel({ detail, onClose }: { detail: ArtifactDetailResponse; on
 function EmptyState(): ReactElement {
   return (
     <section className="empty">
-      <h2>아직 실행된 작업이 없습니다.</h2>
+      <h2>아직 실행 중인 작업이 없습니다.</h2>
       <p>Codex에서 Local Company MCP로 작업을 위임하면 이곳에 run, worker, 산출물이 나타납니다.</p>
     </section>
   );

@@ -2,6 +2,7 @@ import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import type { AppConfig } from "../config.js";
 import type {
+  ArtifactKind,
   DelegateWorkRequest,
   DelegateWorkResponse,
   PmPlan,
@@ -26,8 +27,8 @@ function hasText(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function normalizeKind(kind: string | undefined): "markdown" | "html" | "json" | "file_bundle" {
-  return kind === "html" || kind === "json" || kind === "file_bundle" ? kind : "markdown";
+function normalizeKind(kind: string | undefined): ArtifactKind {
+  return kind === "html" || kind === "json" || kind === "image" ? kind : "markdown";
 }
 
 function normalizeReferenceKind(kind: ReferenceKind | undefined): ReferenceKind {

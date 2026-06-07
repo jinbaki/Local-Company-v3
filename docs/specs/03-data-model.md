@@ -88,7 +88,7 @@ worker run은 실제 Codex CLI 실행 기록이다.
 | `id` | artifact id |
 | `run_id` | run id |
 | `title` | 산출물 제목 |
-| `kind` | markdown, html, json, file_bundle |
+| `kind` | markdown, html, json, image |
 | `status` | requested, draft, in_review, needs_revision, approved |
 | `current_version_id` | 최신 버전 |
 
@@ -123,4 +123,3 @@ data/
 ```
 
 공식 상태는 SQLite에 있고, 산출물 본문과 실행 로그는 파일로 보관한다.
-
