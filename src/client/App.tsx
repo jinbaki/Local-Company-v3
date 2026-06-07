@@ -323,8 +323,13 @@ function ArtifactPanel({ detail, onClose }: { detail: ArtifactDetailResponse; on
         <div>
           <p className="eyebrow">산출물</p>
           <h2>{detail.artifact.title}</h2>
+          <div className="artifact-meta">
+            <span className={badgeClass(detail.artifact.status)}>{statusLabel(detail.artifact.status)}</span>
+            <span>{detail.currentVersion ? `v${detail.currentVersion.version}` : "v-"}</span>
+            <span>{formatDate(detail.artifact.updatedAt)}</span>
+          </div>
         </div>
-        <button className="button" type="button" onClick={onClose}>
+        <button className="button close-button" type="button" onClick={onClose} aria-label="Close artifact">
           닫기
         </button>
       </div>

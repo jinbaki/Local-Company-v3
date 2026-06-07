@@ -12,6 +12,7 @@
 
 body {
   margin: 0;
+  overflow-x: hidden;
 }
 
 button,
@@ -301,6 +302,12 @@ select {
   text-align: left;
 }
 
+.artifact-row span,
+.artifact-row small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .artifact-row:hover {
   border-color: #38bdf8;
 }
@@ -333,20 +340,58 @@ select {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: min(720px, calc(100vw - 48px));
+  height: calc(100vh - 48px);
+  max-height: calc(100vh - 48px);
   padding: 18px;
   z-index: 10;
+}
+
+.artifact-panel .panel-head > div {
+  min-width: 0;
+}
+
+.artifact-panel h2 {
+  overflow-wrap: anywhere;
+}
+
+.artifact-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.artifact-meta span:not(.badge) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #475467;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.close-button {
+  flex: 0 0 auto;
 }
 
 .artifact-panel pre {
   overflow: auto;
   margin: 16px 0 0;
   border-radius: 8px;
-  background: #111827;
-  color: #f8fafc;
-  line-height: 1.6;
+  border: 1px solid #e3e8f0;
+  background: #fbfdff;
+  color: #162033;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.75;
   padding: 18px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  word-break: break-word;
+  -webkit-overflow-scrolling: touch;
 }
 
 .empty,
@@ -382,5 +427,78 @@ select {
   .table-head,
   .table-row {
     grid-template-columns: minmax(180px, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .main {
+    gap: 16px;
+    padding: 14px;
+  }
+
+  .top,
+  .split {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  .panel-head {
+    align-items: flex-start;
+  }
+
+  .artifact-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+  }
+
+  .artifact-row small {
+    min-width: 0;
+  }
+
+  .artifact-row .badge {
+    justify-self: start;
+  }
+
+  .artifact-panel {
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    padding: 14px;
+  }
+
+  .artifact-panel .panel-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+    border-bottom: 1px solid #e3e8f0;
+    padding-bottom: 12px;
+  }
+
+  .artifact-panel h2 {
+    font-size: 18px;
+    line-height: 1.35;
+  }
+
+  .artifact-meta {
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .artifact-panel pre {
+    margin-top: 12px;
+    border-radius: 8px;
+    font-size: 15px;
+    line-height: 1.75;
+    padding: 14px;
   }
 }
