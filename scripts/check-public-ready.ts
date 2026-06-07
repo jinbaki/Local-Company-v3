@@ -23,6 +23,12 @@ const scanTargets = [
   "README.md",
   "LICENSE",
   "package.json",
+  "start-local-company-v3.cmd",
+  "start-local-company-v3-server.cmd",
+  "install-local-company-v3-mcp.cmd",
+  "uninstall-local-company-v3-mcp.cmd",
+  "install-local-company-v3-autostart.cmd",
+  "uninstall-local-company-v3-autostart.cmd",
   "docs",
   "scripts",
   "src",
@@ -142,10 +148,13 @@ const checks: CheckItem[] = [
     label: "scripts",
     passed:
       exists("start-local-company-v3.cmd") &&
+      exists("start-local-company-v3-server.cmd") &&
       exists("install-local-company-v3-mcp.cmd") &&
       exists("uninstall-local-company-v3-mcp.cmd") &&
+      exists("install-local-company-v3-autostart.cmd") &&
+      exists("uninstall-local-company-v3-autostart.cmd") &&
       packageJson.includes("\"mcp:local-company\""),
-    evidence: "start and MCP scripts exist"
+    evidence: "start, MCP, and autostart scripts exist"
   },
   {
     label: "license note",

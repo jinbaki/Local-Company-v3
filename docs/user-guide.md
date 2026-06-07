@@ -23,7 +23,6 @@ Codex, 이 문서를 Local Company V3 PM에게 맡겨서
 
 웹 상황판에서는 다음을 확인한다.
 
-- Codex runner 연결 상태
 - active run
 - PM 계획 요약
 - 작업 큐

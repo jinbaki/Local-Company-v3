@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
-import { AlertCircle, CheckCircle2, FileText, Gauge, Loader2, RefreshCw, Server, Square, Users } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileText, Gauge, Loader2, RefreshCw, Square, Users } from "lucide-react";
 import type { ArtifactDetailResponse, ArtifactKind, DashboardResponse, RunWorkspace } from "../shared/types.js";
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -198,7 +198,6 @@ export function App(): ReactElement {
 function Overview({ dashboard }: { dashboard: DashboardResponse }): ReactElement {
   return (
     <section className="overview">
-      <Metric icon={Server} label="Codex runner" value={dashboard.health.runner.mode} detail={dashboard.health.runner.cliBin} />
       <Metric
         icon={Gauge}
         label="Active runs"
@@ -217,7 +216,7 @@ function Metric({
   value,
   detail
 }: {
-  icon: typeof Server;
+  icon: typeof Gauge;
   label: string;
   value: string;
   detail: string;

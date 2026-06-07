@@ -50,3 +50,21 @@ Local Company V3 상태 확인해줘.
 ## 5. 공개 저장소 주의
 
 `.env`, `data/`, SQLite DB, 실행 로그, Codex 인증 정보는 공개 저장소에 올리지 않는다.
+
+## 6. Windows 자동실행
+
+Codex가 MCP로 Local Company V3를 사용하려면 `http://127.0.0.1:8789` 로컬 서버가 실행 중이어야 한다.
+
+Windows에서 로그인할 때 V3 서버를 자동으로 시작하려면 다음 파일을 실행한다.
+
+```text
+install-local-company-v3-autostart.cmd
+```
+
+자동실행을 해제하려면 다음 파일을 실행한다.
+
+```text
+uninstall-local-company-v3-autostart.cmd
+```
+
+자세한 내용은 [Windows 자동실행](autostart.md)을 참고한다.

@@ -62,6 +62,12 @@ On Windows, you can also run:
 start-local-company-v3.cmd
 ```
 
+For Codex MCP use, the local server must be running. On Windows, register V3 to start automatically:
+
+```text
+install-local-company-v3-autostart.cmd
+```
+
 ## MCP Setup
 
 Start Local Company V3, then run:
@@ -111,6 +117,7 @@ npm run check:public
 - [User Scenarios](docs/02-user-scenarios.md)
 - [Install Guide](docs/install.md)
 - [Codex MCP Setup](docs/codex-mcp-setup.md)
+- [Windows Autostart](docs/autostart.md)
 - [User Guide](docs/user-guide.md)
 - [System Architecture](docs/specs/01-system-architecture.md)
 - [MCP Contract](docs/specs/02-mcp-contract.md)
