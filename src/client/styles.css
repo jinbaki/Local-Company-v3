@@ -101,7 +101,6 @@ select {
 .top,
 .panel-head,
 .split,
-.table-head,
 .table-row,
 .artifact-row {
   display: flex;
@@ -172,6 +171,41 @@ select {
   font-size: 24px;
 }
 
+.section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 10px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(8px);
+}
+
+.section-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2a44;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 0 11px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.section-nav a:hover {
+  border-color: #38bdf8;
+  color: #0369a1;
+}
+
 .run-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -184,6 +218,10 @@ select {
 
 .span-2 {
   grid-column: span 2;
+}
+
+.panel[id] {
+  scroll-margin-top: 86px;
 }
 
 .compact {
@@ -269,22 +307,45 @@ select {
   border-radius: 8px;
 }
 
-.table-head,
-.table-row {
-  display: grid;
-  grid-template-columns: minmax(240px, 1.5fr) minmax(120px, 0.7fr) 120px 80px;
-  padding: 11px 12px;
+.task-panel {
+  padding: 14px;
 }
 
-.table-head {
-  background: #f8fafc;
-  color: #667085;
-  font-size: 12px;
+.task-table {
+  max-height: 260px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(120px, 0.34fr) 112px;
+  padding: 8px 10px;
+}
+
+.table-row {
+  align-items: start;
+  border-top: 1px solid #edf1f7;
+  font-size: 14px;
+}
+
+.table-row:first-child {
+  border-top: 0;
+}
+
+.task-title {
   font-weight: 700;
 }
 
-.table-row {
-  border-top: 1px solid #edf1f7;
+.task-failure {
+  grid-column: 1 / -1;
+  margin: 5px 0 0;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #b91c1c;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 10px;
 }
 
 .artifact-list {
@@ -494,7 +555,6 @@ select {
     grid-column: auto;
   }
 
-  .table-head,
   .table-row {
     grid-template-columns: minmax(180px, 1fr);
   }

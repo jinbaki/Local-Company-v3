@@ -234,118 +234,128 @@ function Metric({
 function RunDetail({ workspace, onOpenArtifact }: { workspace: RunWorkspace; onOpenArtifact: (artifactId: string) => void }): ReactElement {
   const completion =
     workspace.progress.totalTasks > 0 ? Math.round((workspace.progress.approvedTasks / workspace.progress.totalTasks) * 100) : 0;
+  const failedWorkerRunByTask = new Map(
+    workspace.workerRuns
+      .filter((workerRun) => workerRun.status === "failed" && workerRun.errorSummary.trim())
+      .map((workerRun) => [workerRun.taskId, workerRun.errorSummary])
+  );
 
   return (
-    <section className="run-grid">
-      <div className="panel span-2">
-        <div className="panel-head">
-          <div>
-            <p className="eyebrow">{workspace.campaign.title}</p>
-            <h2>{workspace.run.title}</h2>
+    <>
+      <nav className="section-nav" aria-label="상황판 바로가기">
+        <a href="#run-overview">개요</a>
+        <a href="#run-artifacts">산출물 {workspace.artifacts.length}</a>
+        <a href="#run-tasks">작업 {workspace.tasks.length}</a>
+        <a href="#run-notifications">알림 {workspace.notifications.length}</a>
+        {workspace.decisions.length ? <a href="#run-decisions">대표 확인 {workspace.decisions.length}</a> : null}
+      </nav>
+      <section className="run-grid">
+        <div className="panel span-2" id="run-overview">
+          <div className="panel-head">
+            <div>
+              <p className="eyebrow">{workspace.campaign.title}</p>
+              <h2>{workspace.run.title}</h2>
+            </div>
+            <span className={badgeClass(workspace.run.status)}>{statusLabel(workspace.run.status)}</span>
           </div>
-          <span className={badgeClass(workspace.run.status)}>{statusLabel(workspace.run.status)}</span>
-        </div>
-        <p className="summary">{workspace.run.pmSummary || "PM 계획이 아직 없습니다."}</p>
-        <div className="progress-track">
-          <span style={{ width: `${completion}%` }} />
-        </div>
-        <div className="split">
-          <span>작업 {workspace.progress.approvedTasks}/{workspace.progress.totalTasks}</span>
-          <span>산출물 {workspace.progress.approvedArtifacts}/{workspace.progress.totalArtifacts}</span>
-          <span>시작 {formatDate(workspace.run.startedAt)}</span>
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="panel-head compact">
-          <h3>Workers</h3>
-          <Users size={16} />
-        </div>
-        <div className="list">
-          {workspace.workers.map((worker) => (
-            <div className="list-row" key={worker.id}>
-              <strong>{worker.name}</strong>
-              <span>{worker.role}</span>
-            </div>
-          ))}
-          {workspace.workers.length === 0 ? <p className="muted">worker 없음</p> : null}
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="panel-head compact">
-          <h3>최근 알림</h3>
-          <AlertCircle size={16} />
-        </div>
-        <div className="list">
-          {workspace.notifications.map((notification) => (
-            <div className="list-row" key={notification.id}>
-              <strong>{notification.title}</strong>
-              <span>{notification.summary}</span>
-            </div>
-          ))}
-          {workspace.notifications.length === 0 ? <p className="muted">알림 없음</p> : null}
-        </div>
-      </div>
-
-      <div className="panel span-2">
-        <div className="panel-head compact">
-          <h3>작업</h3>
-        </div>
-        <div className="table">
-          <div className="table-head">
-            <span>작업</span>
-            <span>담당</span>
-            <span>상태</span>
-            <span>시도</span>
+          <p className="summary">{workspace.run.pmSummary || "PM 계획이 아직 없습니다."}</p>
+          <div className="progress-track">
+            <span style={{ width: `${completion}%` }} />
           </div>
-          {workspace.tasks.map((task) => (
-            <div className="table-row" key={task.id}>
-              <span>{task.title}</span>
-              <span>{task.workerName ?? "미배정"}</span>
-              <span className={badgeClass(task.status)}>{statusLabel(task.status)}</span>
-              <span>
-                {task.attempt}/{task.maxAttempts}
-              </span>
-            </div>
-          ))}
+          <div className="split">
+            <span>작업 {workspace.progress.approvedTasks}/{workspace.progress.totalTasks}</span>
+            <span>산출물 {workspace.progress.approvedArtifacts}/{workspace.progress.totalArtifacts}</span>
+            <span>시작 {formatDate(workspace.run.startedAt)}</span>
+          </div>
         </div>
-      </div>
 
-      <div className="panel span-2">
-        <div className="panel-head compact">
-          <h3>산출물</h3>
-          <FileText size={16} />
-        </div>
-        <div className="artifact-list">
-          {workspace.artifacts.map((item) => (
-            <button className="artifact-row" key={item.id} type="button" onClick={() => onOpenArtifact(item.id)}>
-              <span>{item.title}</span>
-              <small>{item.reviewSummary || `v${item.currentVersion ?? "-"}`}</small>
-              <em className="type-chip">{artifactKindLabel(item.kind)}</em>
-              <strong className={badgeClass(item.status)}>{statusLabel(item.status)}</strong>
-            </button>
-          ))}
-          {workspace.artifacts.length === 0 ? <p className="muted">산출물 없음</p> : null}
-        </div>
-      </div>
-
-      {workspace.decisions.length ? (
-        <div className="panel span-2 warning-panel">
+        <div className="panel">
           <div className="panel-head compact">
-            <h3>대표 확인 항목</h3>
-            <Square size={16} />
+            <h3>Workers</h3>
+            <Users size={16} />
           </div>
-          {workspace.decisions.map((decision) => (
-            <div className="decision" key={decision.id}>
-              <strong>{decision.title}</strong>
-              <p>{decision.reason}</p>
-              <span className={badgeClass(decision.status)}>{statusLabel(decision.status)}</span>
-            </div>
-          ))}
+          <div className="list">
+            {workspace.workers.map((worker) => (
+              <div className="list-row" key={worker.id}>
+                <strong>{worker.name}</strong>
+                <span>{worker.role}</span>
+              </div>
+            ))}
+            {workspace.workers.length === 0 ? <p className="muted">worker 없음</p> : null}
+          </div>
         </div>
-      ) : null}
-    </section>
+
+        <div className="panel" id="run-notifications">
+          <div className="panel-head compact">
+            <h3>최근 알림</h3>
+            <AlertCircle size={16} />
+          </div>
+          <div className="list">
+            {workspace.notifications.map((notification) => (
+              <div className="list-row" key={notification.id}>
+                <strong>{notification.title}</strong>
+                <span>{notification.summary}</span>
+              </div>
+            ))}
+            {workspace.notifications.length === 0 ? <p className="muted">알림 없음</p> : null}
+          </div>
+        </div>
+
+        <div className="panel span-2" id="run-artifacts">
+          <div className="panel-head compact">
+            <h3>산출물</h3>
+            <FileText size={16} />
+          </div>
+          <div className="artifact-list">
+            {workspace.artifacts.map((item) => (
+              <button className="artifact-row" key={item.id} type="button" onClick={() => onOpenArtifact(item.id)}>
+                <span>{item.title}</span>
+                <small>{item.reviewSummary || `v${item.currentVersion ?? "-"}`}</small>
+                <em className="type-chip">{artifactKindLabel(item.kind)}</em>
+                <strong className={badgeClass(item.status)}>{statusLabel(item.status)}</strong>
+              </button>
+            ))}
+            {workspace.artifacts.length === 0 ? <p className="muted">산출물 없음</p> : null}
+          </div>
+        </div>
+
+        <div className="panel span-2 task-panel" id="run-tasks">
+          <div className="panel-head compact">
+            <h3>작업</h3>
+          </div>
+          <div className="table task-table">
+            {workspace.tasks.map((task) => {
+              const failureReason =
+                task.status === "failed" ? (failedWorkerRunByTask.get(task.id) ?? "실패 이유가 기록되지 않았습니다.") : "";
+              return (
+                <div className="table-row task-row" key={task.id}>
+                  <span className="task-title">{task.title}</span>
+                  <span>{task.workerName ?? "미배정"}</span>
+                  <span className={badgeClass(task.status)}>{statusLabel(task.status)}</span>
+                  {failureReason ? <p className="task-failure">실패 이유: {failureReason}</p> : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {workspace.decisions.length ? (
+          <div className="panel span-2 warning-panel" id="run-decisions">
+            <div className="panel-head compact">
+              <h3>대표 확인 항목</h3>
+              <Square size={16} />
+            </div>
+            {workspace.decisions.map((decision) => (
+              <div className="decision" key={decision.id}>
+                <strong>{decision.title}</strong>
+                <p>{decision.reason}</p>
+                <span className={badgeClass(decision.status)}>{statusLabel(decision.status)}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+    </>
   );
 }
 
